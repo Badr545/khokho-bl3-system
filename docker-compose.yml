@@ -1,0 +1,59 @@
+﻿version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: khokho_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  lavalink:
+    image: fredboat/lavalink:latest
+    container_name: khokho_lavalink
+    restart: always
+    ports:
+      - "2333:2333"
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml
+    environment:
+      - _JAVA_OPTIONS=-Xmx1G
+
+  bot:
+    build: .
+    container_name: khokho_bot
+    restart: always
+    depends_on:
+      - redis
+      - lavalink
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+
+  backend:
+    build: ./web/backend
+    container_name: khokho_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+
+  frontend:
+    build: ./web/frontend
+    container_name: khokho_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+
+volumes:
+  redis_data:

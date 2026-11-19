@@ -1,0 +1,16 @@
+﻿{
+    "common":  {
+                   "loading":  "Loading...",
+                   "error":  "Error",
+                   "success":  "Success"
+               },
+    "suggest":  {
+                    "submitted":  "Your suggestion has been submitted for community voting!"
+                },
+    "modmail":  {
+                    "created":  "Modmail ticket created. Staff will be with you shortly."
+                },
+    "premium":  {
+                    "required":  "This feature requires a premium subscription."
+                }
+}

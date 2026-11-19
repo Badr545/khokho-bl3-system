@@ -1,0 +1,16 @@
+﻿{
+    "common":  {
+                   "loading":  "Kaychargi...",
+                   "error":  "Khata2",
+                   "success":  "Najah"
+               },
+    "suggest":  {
+                    "submitted":  "L-iqtira7 dyalek tsift bach yswto 3lih l-a3da2!"
+                },
+    "modmail":  {
+                    "created":  "T-creya ticket modmail. Staff ghadi yjewbouk dghya."
+                },
+    "premium":  {
+                    "required":  "Had l-miza khas-ha ishtirak Premium."
+                }
+}

@@ -1,0 +1,15 @@
+.env
+data/
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+.local/
+**/node_modules/
+**/.next/
+**/.venv/
+venv/
+tunnel.log
+/web/frontend/next_output.txt
+/web/frontend/test-out.css
+/web/frontend/swc-gnu.tgz

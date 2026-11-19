@@ -1,0 +1,41 @@
+﻿{
+  "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "exported_at": "2026-11-18T12:00:00+00:00",
+  "name": "Khokho Bl3 V3 Commercial",
+  "author": "support@khokhobl3.com",
+  "description": "Enterprise Discord Bot & Web Dashboard Suite with SQLite WAL and Redis integration.",
+  "features": null,
+  "docker_images": {
+    "Python 3.11": "ghcr.io/parkervcp/yolks:python_3.11"
+  },
+  "file_denylist": [],
+  "startup": "python app.py",
+  "config": {
+    "files": "{}",
+    "startup": "{\r\n    \"done\": \"Khokho Bl3 V3 is online!\"\r\n}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/bash\napk add --no-cache git curl python3 py3-pip\npip install -r requirements.txt\necho 'Installation completed successfully!'",
+      "container": "python:3.11-alpine",
+      "entrypoint": "ash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Discord Bot Token",
+      "description": "Your bot token from the Discord developer portal",
+      "env_variable": "DISCORD_TOKEN",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+﻿{
+    "common":  {
+                   "loading":  "Chargement...",
+                   "error":  "Erreur",
+                   "success":  "Succès"
+               },
+    "suggest":  {
+                    "submitted":  "Votre suggestion a été soumise au vote de la communauté !"
+                },
+    "modmail":  {
+                    "created":  "Ticket modmail créé. L\u0027équipe du staff vous répondra bientôt."
+                },
+    "premium":  {
+                    "required":  "Cette fonctionnalité nécessite un abonnement Premium."
+                }
+}
