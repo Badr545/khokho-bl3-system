@@ -8,6 +8,11 @@ DISCORD_API_BASE = "https://discord.com/api/v10"
 class DiscordOAuth:
     @staticmethod
     async def exchange_code(code: str) -> Dict[str, Any]:
+        if not settings.DISCORD_CLIENT_ID or not settings.DISCORD_CLIENT_SECRET:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Discord OAuth is not configured",
+            )
         async with httpx.AsyncClient() as client:
             data = {
                 "client_id": settings.DISCORD_CLIENT_ID,
@@ -17,7 +22,7 @@ class DiscordOAuth:
                 "redirect_uri": settings.DISCORD_REDIRECT_URI,
             }
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            r = await client.post(f"{DISCORD_API_BASE}/oauth2/token", data=data, headers=headers)
+            r = await client.post(f"{DISCORD_API_BASE}/oauth2/token", data=data, headers=headers, timeout=10)
             if r.status_code != 200:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -29,7 +34,7 @@ class DiscordOAuth:
     async def get_user(access_token: str) -> Dict[str, Any]:
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {access_token}"}
-            r = await client.get(f"{DISCORD_API_BASE}/users/@me", headers=headers)
+            r = await client.get(f"{DISCORD_API_BASE}/users/@me", headers=headers, timeout=10)
             if r.status_code != 200:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -41,7 +46,12 @@ class DiscordOAuth:
     async def get_user_guilds(access_token: str) -> List[Dict[str, Any]]:
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {access_token}"}
-            r = await client.get(f"{DISCORD_API_BASE}/users/@me/guilds", headers=headers)
+            r = await client.get(
+                f"{DISCORD_API_BASE}/users/@me/guilds",
+                headers=headers,
+                params={"with_counts": "true"},
+                timeout=10,
+            )
             if r.status_code != 200:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,7 +65,7 @@ class DiscordOAuth:
             return []
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bot {settings.DISCORD_BOT_TOKEN}"}
-            r = await client.get(f"{DISCORD_API_BASE}/users/@me/guilds", headers=headers)
+            r = await client.get(f"{DISCORD_API_BASE}/users/@me/guilds", headers=headers, timeout=10)
             if r.status_code != 200:
                 return []
             guilds = r.json()

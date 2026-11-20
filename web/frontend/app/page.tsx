@@ -4,17 +4,20 @@ import {
   CheckCircle2, Bot, Users, Layers, ExternalLink, Zap, ChevronRight 
 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 async function getLiveStatus() {
   try {
-    const res = await fetch('http://localhost:8000/api/v1/status', { next: { revalidate: 10 } });
+    const apiBase = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+    const res = await fetch(`${apiBase}/status`, { next: { revalidate: 10 } });
     if (res.ok) return await res.json();
   } catch (e) {}
   return {
-    bot_online: true,
-    guild_count: 2,
-    user_count: 154,
-    latency_ms: 18.2,
-    uptime_seconds: 3600
+    bot_online: false,
+    guild_count: 0,
+    user_count: 0,
+    latency_ms: 0,
+    uptime_seconds: 0
   };
 }
 

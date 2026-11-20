@@ -3,9 +3,9 @@ import json
 import os
 import httpx
 from typing import List, Dict, Any, Optional
+from ..config import settings
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-BOT_DB_PATH = os.path.join(BASE_DIR, "data", "bot.db")
+BOT_DB_PATH = os.path.join(settings.DATA_DIR, "bot.db")
 DISCORD_API_BASE = "https://discord.com/api/v10"
 
 # In-memory member cache to avoid spamming Discord API
@@ -171,9 +171,9 @@ class SqliteReader:
                         uid, data_str = row
                         data = json.loads(data_str) if data_str else {}
                         warn_list = data if isinstance(data, list) else data.get("warnings", [])
-                        for w in warn_list:
+                        for index, w in enumerate(warn_list):
                             all_warns.append({
-                                "id": w.get("id", "warn-1"),
+                                "id": str(w.get("id") or f"{uid}-{index}"),
                                 "user_id": str(uid),
                                 "moderator_id": str(w.get("mod_id", "Unknown")),
                                 "reason": w.get("reason", "No reason provided"),

@@ -8,7 +8,7 @@ from ..config import settings
 from ..models.base import get_db
 from ..models.entities import WebPremium, PremiumKey
 from ..schemas.schemas import PremiumCheckoutRequest, PremiumActivateKeyRequest
-from ..auth.deps import get_current_user
+from ..auth.deps import get_current_user, verify_guild_permission
 
 router = APIRouter(prefix="/premium", tags=["Premium & Billing"])
 
@@ -76,7 +76,11 @@ async def get_premium_tiers():
     }
 
 @router.post("/checkout")
-async def create_checkout_session(req: PremiumCheckoutRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
+async def create_checkout_session(
+    req: PremiumCheckoutRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    await verify_guild_permission(req.guild_id, current_user)
     if not settings.STRIPE_SECRET_KEY:
         # Mock Stripe URL for local demo
         return {"checkout_url": f"{req.success_url}?session_id=mock_session_12345&guild_id={req.guild_id}&tier={req.tier}"}
@@ -143,7 +147,12 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     return {"status": "success"}
 
 @router.post("/activate")
-async def activate_key(req: PremiumActivateKeyRequest, db: AsyncSession = Depends(get_db), current_user: Dict[str, Any] = Depends(get_current_user)):
+async def activate_key(
+    req: PremiumActivateKeyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    await verify_guild_permission(req.guild_id, current_user)
     import hashlib
     key_hashed = hashlib.sha256(req.key.strip().encode()).hexdigest()
 

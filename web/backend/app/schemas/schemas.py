@@ -70,9 +70,9 @@ class CustomCommandResponse(BaseModel):
 
 class GiveawayCreate(BaseModel):
     channel_id: str
-    prize: str
-    duration_seconds: int
-    winners_count: int = 1
+    prize: str = Field(min_length=1, max_length=256)
+    duration_seconds: int = Field(gt=0, le=31_536_000)
+    winners_count: int = Field(default=1, ge=1, le=100)
 
 class BotActionRequest(BaseModel):
     action: str

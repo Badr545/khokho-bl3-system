@@ -9,9 +9,10 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from .config import settings
+from .bot_bridge import bot_bridge
 from .models.base import engine_features, Base
 from .auth.deps import get_current_user
-from .routers import guilds, modules, premium
+from .routers import auth, guilds, modules, premium
 from .schemas.schemas import StatusResponse
 
 START_TIME = time.time()
@@ -29,7 +30,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +42,12 @@ async def startup():
         await conn.run_sync(Base.metadata.create_all)
     print("🚀 Web Backend Database Tables Initialized!")
 
+
+@app.on_event("shutdown")
+async def shutdown():
+    await bot_bridge.close()
+
+
 # Public Endpoints
 @app.get(f"{settings.API_V1_STR}/status", response_model=StatusResponse, tags=["Public Status"])
 async def get_system_status():
@@ -48,7 +55,7 @@ async def get_system_status():
     guild_count = 0
     user_count = 0
     bot_online = False
-    ping = 15.0
+    ping = 0.0
 
     # Fetch live counts from Discord Gateway API
     bot_token = settings.DISCORD_BOT_TOKEN
@@ -72,7 +79,7 @@ async def get_system_status():
             pass
 
     return StatusResponse(
-        status="operational",
+        status="operational" if bot_online else "degraded",
         bot_online=bot_online,
         latency_ms=ping,
         guild_count=guild_count,
@@ -82,9 +89,14 @@ async def get_system_status():
 
 @app.get(f"{settings.API_V1_STR}/user/me", tags=["Users"])
 async def get_logged_in_user(current_user: dict = Depends(get_current_user)):
-    return current_user
+    return {
+        "id": current_user["sub"],
+        "username": current_user["username"],
+        "avatar": current_user.get("avatar"),
+    }
 
 # Mount Routers
+app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(guilds.router, prefix=settings.API_V1_STR)
 app.include_router(modules.router, prefix=settings.API_V1_STR)
 app.include_router(premium.router, prefix=settings.API_V1_STR)

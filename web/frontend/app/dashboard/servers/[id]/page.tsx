@@ -22,6 +22,7 @@ export default function ServerGeneralSettings() {
     }
   });
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!guildId) return;
@@ -29,17 +30,21 @@ export default function ServerGeneralSettings() {
       .then((res) => {
         if (res.data) setConfig(res.data);
       })
-      .catch(() => {});
+      .catch(() => setError('Could not load server settings. Check your login and API connection.'));
   }, [guildId]);
 
-  const handleSave = () => {
-    apiClient.patch('/guilds/' + guildId, {
-      prefix: config.prefix,
-      language: config.language
-    }).then(() => {
+  const handleSave = async () => {
+    setError('');
+    try {
+      await apiClient.patch('/guilds/' + guildId, {
+        prefix: config.prefix,
+        language: config.language
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    });
+    } catch {
+      setError('Settings could not be synchronized. Check that the bot and API are connected to Redis.');
+    }
   };
 
   const navItems = [
@@ -73,6 +78,7 @@ export default function ServerGeneralSettings() {
       </div>
 
       <div className="p-6 rounded-2xl border border-white/5 glass space-y-6">
+        {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
         <h3 className="text-lg font-bold">Bot Prefix & Localization</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

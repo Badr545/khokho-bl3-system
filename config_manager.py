@@ -77,6 +77,14 @@ def _load_configs():
         _INITIALIZED = True
 
 
+def reload_configs():
+    """Reload guild settings changed by the dashboard."""
+    global _INITIALIZED
+    with _lock:
+        _INITIALIZED = False
+    _load_configs()
+
+
 def _save_configs_sync():
     with _lock:
         try:

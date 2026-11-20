@@ -7,16 +7,16 @@ import { apiClient } from '@/lib/api';
 export default function ServersSelectionPage() {
   const [guilds, setGuilds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const fetchGuilds = () => {
     setLoading(true);
+    setError('');
     apiClient.get('/guilds')
       .then((res) => {
         setGuilds(res.data);
       })
-      .catch((err) => {
-        console.error('Failed to load guilds:', err);
-      })
+      .catch(() => setError('Could not load your Discord servers. Sign in again or check the API connection.'))
       .finally(() => setLoading(false));
   };
 
@@ -47,6 +47,8 @@ export default function ServersSelectionPage() {
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Actualiser
         </button>
       </div>
+
+      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
 
       {/* Servers Grid */}
       {loading ? (
@@ -94,7 +96,7 @@ export default function ServersSelectionPage() {
                     </h3>
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-md font-semibold">
-                        Propriétaire
+                        {g.owner ? 'Propriétaire' : 'Administrateur'}
                       </span>
                       <span className="text-[10px] bg-slate-800/80 text-slate-400 px-2 py-0.5 rounded-md font-medium">
                         ID: {g.id}
@@ -103,9 +105,9 @@ export default function ServersSelectionPage() {
                   </div>
                 </div>
 
-                <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  Bot Actif
+                <span className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${g.has_bot ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${g.has_bot ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
+                  {g.has_bot ? 'Bot actif' : 'Bot absent'}
                 </span>
               </div>
 
@@ -114,19 +116,30 @@ export default function ServersSelectionPage() {
                 <div className="flex items-center gap-4 text-xs text-slate-400">
                   <span className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-slate-500" />
-                    <strong className="text-white font-semibold">{g.approximate_member_count || 154}</strong> membres
+                    <strong className="text-white font-semibold">{g.approximate_member_count || 0}</strong> membres
                   </span>
                   <span className="text-[11px] text-emerald-400">
-                    ● {g.approximate_presence_count || 42} en ligne
+                    ● {g.approximate_presence_count || 0} en ligne
                   </span>
                 </div>
 
-                <Link
-                  href={'/dashboard/servers/' + g.id}
-                  className="px-5 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-[#5865F2]/25"
-                >
-                  Configurer <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                {g.has_bot ? (
+                  <Link
+                    href={'/dashboard/servers/' + g.id}
+                    className="px-5 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-[#5865F2]/25"
+                  >
+                    Configurer <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                ) : (
+                  <a
+                    href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || ''}&scope=bot%20applications.commands&permissions=8&guild_id=${g.id}&disable_guild_select=true`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-5 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-[#5865F2]/25"
+                  >
+                    Ajouter le bot <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
             </div>
           ))}

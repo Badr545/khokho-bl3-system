@@ -8,6 +8,7 @@ export default function ModerationPage() {
   const params = useParams();
   const guildId = params?.id as string;
   const [warnings, setWarnings] = useState<any[]>([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!guildId) return;
@@ -15,19 +16,17 @@ export default function ModerationPage() {
       .then((res) => {
         setWarnings(res.data.warnings || []);
       })
-      .catch(() => {
-        setWarnings([
-          { id: 'warn-101', user_id: '8877665544332211', moderator_id: '1234567890', reason: 'Spamming emojis in #general', timestamp: '2026-11-18 10:15' },
-          { id: 'warn-102', user_id: '4455667788990011', moderator_id: '1234567890', reason: 'Inappropriate language in vocal', timestamp: '2026-11-17 19:40' }
-        ]);
-      });
+      .catch(() => setError('Could not load warnings. Check your login and API connection.'));
   }, [guildId]);
 
-  const handleRevoke = (warnId: string) => {
-    apiClient.post('/guilds/' + guildId + '/moderation/warnings/' + warnId + '/revoke')
-      .then(() => {
-        setWarnings(warnings.filter((w) => w.id !== warnId));
-      });
+  const handleRevoke = async (warnId: string) => {
+    setError('');
+    try {
+      await apiClient.post('/guilds/' + guildId + '/moderation/warnings/' + warnId + '/revoke');
+      setWarnings((current) => current.filter((warning) => warning.id !== warnId));
+    } catch {
+      setError('Could not revoke this warning. Verify that the bot is online and try again.');
+    }
   };
 
   return (
@@ -41,6 +40,7 @@ export default function ModerationPage() {
 
       <div className="p-6 rounded-2xl border border-white/5 glass">
         <h3 className="font-bold text-sm mb-4">Active Infractions Log</h3>
+        {error && <p role="alert" className="mb-4 text-xs text-red-400">{error}</p>}
         <div className="space-y-2">
           {warnings.length === 0 ? (
             <p className="text-xs text-slate-500 py-4">No warnings found for this server. All clear!</p>

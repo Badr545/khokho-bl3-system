@@ -9,6 +9,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from discord.ext.commands.view import StringView
 from utils.context import EmbedContext
+from config_manager import get_guild_config
 load_dotenv()
 
 # ═══════════════════════════════════════════════════════════════════
@@ -20,11 +21,17 @@ intents.members = True
 intents.voice_states = True
 intents.presences = True
 
+
+async def get_prefix(bot, message):
+    prefix = get_guild_config(message.guild)["prefix"] if message.guild else "&"
+    return commands.when_mentioned_or(prefix, "+", "-")(bot, message)
+
+
 # ═══════════════════════════════════════════════════════════════════
 # ─── BOT
 # ═══════════════════════════════════════════════════════════════════
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or("&", "+", "-"),
+    command_prefix=get_prefix,
     intents=intents,
     help_command=None,
     context_class=EmbedContext,

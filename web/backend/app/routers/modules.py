@@ -4,7 +4,7 @@ import json
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from ..auth.deps import get_current_user, require_premium
+from ..auth.deps import get_current_user, require_guild_permission, require_premium
 from ..models.base import get_db
 from ..models.entities import Suggestion, CustomCommand, ApplicationForm, ApplicationSubmission
 from ..schemas.schemas import (
@@ -14,10 +14,15 @@ from ..schemas.schemas import (
 from ..services.sqlite_reader import SqliteReader
 from ..services.guild_service import GuildService
 from ..bot_bridge import bot_bridge
+from ..config import settings
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+DATA_DIR = settings.DATA_DIR
 
-router = APIRouter(prefix="/guilds/{guild_id}", tags=["Guild Modules"])
+router = APIRouter(
+    prefix="/guilds/{guild_id}",
+    tags=["Guild Modules"],
+    dependencies=[Depends(require_guild_permission)],
+)
 
 # ─── ECONOMY ───
 @router.get("/economy")
@@ -40,6 +45,7 @@ async def update_economy(guild_id: str, updates: EconomySettingsUpdate):
     cur = conf.get("features", {}).get("economy_settings", {})
     cur.update(updates.model_dump(exclude_unset=True))
     await GuildService.update_guild_config(guild_id, {"economy_settings": cur})
+    await bot_bridge.execute_action("sync_settings", guild_id, {})
     return {"status": "success", "settings": cur}
 
 # ─── LEVELS ───
@@ -63,6 +69,7 @@ async def update_levels(guild_id: str, updates: LevelsSettingsUpdate):
     cur = conf.get("features", {}).get("levels_settings", {})
     cur.update(updates.model_dump(exclude_unset=True))
     await GuildService.update_guild_config(guild_id, {"levels_settings": cur})
+    await bot_bridge.execute_action("sync_settings", guild_id, {})
     return {"status": "success", "settings": cur}
 
 # ─── MODERATION / WARNINGS ───
@@ -73,13 +80,20 @@ async def get_warnings(guild_id: str, page: int = 1):
 
 @router.post("/moderation/warnings/{warning_id}/revoke")
 async def revoke_warning(guild_id: str, warning_id: str):
-    res = await bot_bridge.execute_action("revoke_warning", guild_id, {"warning_id": warning_id})
-    return res
+    warnings = await SqliteReader.get_warnings(guild_id, page=1, page_size=10000)
+    warning = next((item for item in warnings if str(item["id"]) == warning_id), None)
+    if warning is None:
+        raise HTTPException(status_code=404, detail="Warning not found")
+    return await bot_bridge.execute_action(
+        "revoke_warning",
+        guild_id,
+        {"warning_id": warning_id, "user_id": warning["user_id"]},
+    )
 
 # ─── TICKETS ───
 @router.get("/tickets")
 async def list_tickets(guild_id: str):
-    tickets_path = os.path.join(BASE_DIR, "data", "tickets.json")
+    tickets_path = os.path.join(DATA_DIR, "tickets.json")
     if os.path.exists(tickets_path):
         try:
             with open(tickets_path, "r", encoding="utf-8") as f:
@@ -92,7 +106,7 @@ async def list_tickets(guild_id: str):
 
 @router.get("/tickets/{ticket_id}/transcript")
 async def get_ticket_transcript(guild_id: str, ticket_id: str):
-    trans_dir = os.path.join(BASE_DIR, "data", "transcripts")
+    trans_dir = os.path.join(DATA_DIR, "transcripts")
     html_file = os.path.join(trans_dir, f"{ticket_id}.html")
     if os.path.exists(html_file):
         with open(html_file, "r", encoding="utf-8") as f:
@@ -102,12 +116,20 @@ async def get_ticket_transcript(guild_id: str, ticket_id: str):
 # ─── GIVEAWAYS ───
 @router.get("/giveaways")
 async def list_giveaways(guild_id: str):
-    giveaways_path = os.path.join(BASE_DIR, "data", "giveaways.json")
+    giveaways_path = os.path.join(DATA_DIR, "giveaways.json")
     if os.path.exists(giveaways_path):
         try:
             with open(giveaways_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return {"giveaways": data.get(guild_id, [])}
+                guild_giveaways = data.get(guild_id, {})
+                if not isinstance(guild_giveaways, dict):
+                    raise ValueError(f"Invalid giveaway data for server {guild_id}")
+                return {
+                    "giveaways": [
+                        {"message_id": str(message_id), **giveaway}
+                        for message_id, giveaway in guild_giveaways.items()
+                    ]
+                }
         except Exception:
             pass
     return {"giveaways": []}
@@ -160,7 +182,7 @@ async def list_suggestions(guild_id: str, db: AsyncSession = Depends(get_db)):
 async def create_suggestion(guild_id: str, req: SuggestionCreate, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     sugg = Suggestion(
         guild_id=int(guild_id),
-        user_id=int(user.get("id", 0)),
+        user_id=int(user["sub"]),
         message=req.message
     )
     db.add(sugg)
@@ -181,7 +203,7 @@ async def create_custom_command(guild_id: str, req: CustomCommandCreate, db: Asy
         guild_id=int(guild_id),
         name=req.name.lower().strip(),
         response=req.response,
-        created_by=int(user.get("id", 0))
+        created_by=int(user["sub"])
     )
     db.add(cmd)
     await db.commit()

@@ -24,7 +24,9 @@ def _load():
         return {}
 
 
-def _save(data):
+def _save(data=None):
+    if data is None:
+        data = GIVEAWAYS
     os.makedirs("data", exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)

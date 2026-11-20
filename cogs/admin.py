@@ -15,6 +15,7 @@ import botconfig
 import json
 import os
 import asyncio
+import uuid
 
 # ═══════════════════════════════════════════════════════════════════
 # ─── JAIL CONFIG
@@ -339,6 +340,7 @@ class Admin(commands.Cog):
 
         guild_id = ctx.guild.id
         WARNINGS.setdefault(guild_id, {}).setdefault(member.id, []).append({
+            "id": uuid.uuid4().hex,
             "reason": reason,
             "mod": ctx.author.id,
             "time": discord.utils.utcnow().isoformat(),

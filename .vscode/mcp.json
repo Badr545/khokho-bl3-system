@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "wispbyte": {
+      "type": "http",
+      "url": "https://wispbyte.com/mcp"
+    }
+  }
+}

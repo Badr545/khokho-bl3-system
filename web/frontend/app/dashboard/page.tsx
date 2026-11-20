@@ -8,36 +8,33 @@ import { apiClient } from '@/lib/api';
 
 export default function DashboardOverviewPage() {
   const [stats, setStats] = useState({
-    guild_count: 2,
-    user_count: 154,
-    latency_ms: 18.2,
-    bot_online: true
+    guild_count: 0,
+    user_count: 0,
+    latency_ms: 0,
+    bot_online: false
   });
   const [topUsers, setTopUsers] = useState<any[]>([]);
   const [topLevels, setTopLevels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Status
     apiClient.get('/status')
       .then((res) => {
         if (res.data) setStats(res.data);
       })
       .catch(() => {});
 
-    // 2. Live economy from primary guild
-    apiClient.get('/guilds/1320020905803644979/economy')
-      .then((res) => {
-        if (res.data?.leaderboard) setTopUsers(res.data.leaderboard.slice(0, 5));
+    apiClient.get('/guilds')
+      .then(async ({ data }) => {
+        const guild = data.find((item: any) => item.has_bot);
+        if (!guild) return;
+        const [economy, levels] = await Promise.all([
+          apiClient.get(`/guilds/${guild.id}/economy`),
+          apiClient.get(`/guilds/${guild.id}/levels`),
+        ]);
+        if (economy.data?.leaderboard) setTopUsers(economy.data.leaderboard.slice(0, 5));
+        if (levels.data?.leaderboard) setTopLevels(levels.data.leaderboard.slice(0, 5));
       })
-      .catch(() => {});
-
-    // 3. Live levels
-    apiClient.get('/guilds/1320020905803644979/levels')
-      .then((res) => {
-        if (res.data?.leaderboard) setTopLevels(res.data.leaderboard.slice(0, 5));
-      })
-      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -49,7 +46,7 @@ export default function DashboardOverviewPage() {
           <h1 className="text-3xl font-black tracking-tight text-white mb-1.5 flex items-center gap-3">
             Vue d&apos;ensemble & Télémétrie
             <span className="text-xs bg-emerald-500/10 text-emerald-400 font-bold px-3 py-1 rounded-full border border-emerald-500/20">
-              ● Données Réelles Live
+              {stats.bot_online ? '● Bot connecté' : '● Bot hors ligne'}
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
@@ -59,7 +56,7 @@ export default function DashboardOverviewPage() {
 
         <div className="flex items-center gap-3">
           <div className="px-3.5 py-1.5 rounded-xl glass-card flex items-center gap-2 text-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className={`w-2 h-2 rounded-full ${stats.bot_online ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
             <span className="text-slate-300">Ping Gateway: <strong>{stats.latency_ms}ms</strong></span>
           </div>
         </div>
@@ -77,7 +74,7 @@ export default function DashboardOverviewPage() {
           <div>
             <div className="text-3xl font-black text-white">{stats.guild_count}</div>
             <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3 h-3" /> Connecté en direct
+              <TrendingUp className="w-3 h-3" /> Serveurs du bot
             </span>
           </div>
         </div>
@@ -92,7 +89,7 @@ export default function DashboardOverviewPage() {
           <div>
             <div className="text-3xl font-black text-white">{stats.user_count.toLocaleString()}</div>
             <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-1">
-              ● Données vérifiées
+              {stats.bot_online ? '● Données Discord' : '● Indisponible'}
             </span>
           </div>
         </div>
@@ -107,7 +104,7 @@ export default function DashboardOverviewPage() {
           <div>
             <div className="text-3xl font-black text-white">72 Cogs</div>
             <span className="text-[11px] text-purple-400 font-medium flex items-center gap-1 mt-1">
-              ● Tous opérationnels
+              {stats.bot_online ? '● Bot joignable' : '● Bot hors ligne'}
             </span>
           </div>
         </div>
@@ -122,7 +119,7 @@ export default function DashboardOverviewPage() {
           <div>
             <div className="text-3xl font-black text-white">SQLite WAL</div>
             <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-1">
-              ● Mode haute concurrence
+              ● SQLite
             </span>
           </div>
         </div>

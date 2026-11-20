@@ -13,7 +13,7 @@
 **The Enterprise-Grade Discord Bot & Web Dashboard Suite.**
 *Built to directly outcompete MEE6, Dyno, Carl-bot, and ProBot in performance, features, and commercial monetization.*
 
-[🌐 Live Demo](#) • [📖 Documentation](docs/INSTALLATION.md) • [💎 Pricing Plans](docs/PREMIUM.md) • [🚀 Deploy](docs/DEPLOYMENT.md)
+[🌐 Live Demo](#) • [📖 Documentation](docs/INSTALLATION.md) • [💎 Pricing Plans](docs/PREMIUM.md) • [🚀 Deploy](docs/WEB_DEPLOYMENT.md)
 
 </div>
 
@@ -84,20 +84,14 @@ khokho_bl3_V3/
 
 ## 🚀 Quick Start (Docker)
 
-1. Clone or extract the repository:
-   `ash
-   cd "khokho bl3 V3"
-   `
-2. Configure .env:
-   `ash
-   cp .env.example .env
-   # Add your DISCORD_TOKEN and DISCORD_CLIENT_ID
-   `
-3. Start the entire cluster:
-   `ash
-   docker-compose up -d --build
-   `
-4. Access services:
+1. Copy `.env.example` to `.env` and configure the Discord bot token, OAuth client credentials, redirect URL, and a unique `NEXTAUTH_SECRET`. See [Discord setup](docs/DISCORD_SETUP.md) and [web deployment](docs/WEB_DEPLOYMENT.md).
+2. Start the entire cluster:
+
+   ```powershell
+   docker compose up -d --build
+   ```
+
+3. Access services:
    - **Web Dashboard**: http://localhost:3000
    - **REST API Docs**: http://localhost:8000/api/v1/docs
    - **Status Page**: http://localhost:3000/status
