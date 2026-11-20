@@ -23,6 +23,7 @@ async function getLiveStatus() {
 
 export default async function LandingPage() {
   const status = await getLiveStatus();
+  const discordClientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
 
   return (
     <div className="relative min-h-screen bg-[#08090d] text-slate-100 overflow-hidden">
@@ -94,14 +95,16 @@ export default async function LandingPage() {
           >
             Gérer mes serveurs <ChevronRight className="w-4 h-4" />
           </Link>
-          <a
-            href="https://discord.com/oauth2/authorize?client_id=1453472093739286663&scope=bot%20applications.commands&permissions=8"
-            target="_blank"
-            rel="noreferrer"
-            className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-white/10 glass-card hover:bg-white/5 text-slate-200 font-bold text-sm transition flex items-center justify-center gap-2"
-          >
-            Inviter le Bot <ExternalLink className="w-4 h-4 text-slate-400" />
-          </a>
+          {discordClientId && (
+            <a
+              href={`https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(discordClientId)}&scope=bot%20applications.commands&permissions=8`}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-white/10 glass-card hover:bg-white/5 text-slate-200 font-bold text-sm transition flex items-center justify-center gap-2"
+            >
+              Inviter le Bot <ExternalLink className="w-4 h-4 text-slate-400" />
+            </a>
+          )}
         </div>
 
         {/* Live Numbers Strip */}
