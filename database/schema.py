@@ -6,6 +6,31 @@ from database.engine import execute, commit
 
 
 SCHEMA_SQL = [
+    # ─── VC RANKS
+    """
+    CREATE TABLE IF NOT EXISTS vc_ranks (
+        guild_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        xp INTEGER NOT NULL DEFAULT 0,
+        level INTEGER NOT NULL DEFAULT 0,
+        total_seconds INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id, user_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS vc_rank_config (
+        guild_id INTEGER PRIMARY KEY,
+        xp_per_minute INTEGER NOT NULL DEFAULT 2,
+        min_users INTEGER NOT NULL DEFAULT 2,
+        excluded_channel_ids TEXT NOT NULL DEFAULT '[]',
+        ladder_json TEXT NOT NULL DEFAULT '[]',
+        announcement_channel_id INTEGER,
+        anti_afk_muted INTEGER NOT NULL DEFAULT 1,
+        anti_afk_deafened INTEGER NOT NULL DEFAULT 1,
+        anti_afk_alone INTEGER NOT NULL DEFAULT 1
+    )
+    """,
     # ─── ECONOMY
     """
     CREATE TABLE IF NOT EXISTS economy (

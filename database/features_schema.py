@@ -16,6 +16,49 @@ _lock = threading.RLock()
 _conn: Optional[sqlite3.Connection] = None
 
 SCHEMA_SQL = [
+    # ─── STAFF APPLICATIONS
+    """
+    CREATE TABLE IF NOT EXISTS staff_application_panels (
+        guild_id INTEGER PRIMARY KEY,
+        channel_id INTEGER NOT NULL,
+        message_id INTEGER NOT NULL,
+        fields_json TEXT NOT NULL DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS staff_applications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        answers_json TEXT NOT NULL DEFAULT '{}',
+        status TEXT NOT NULL DEFAULT 'pending',
+        message_id INTEGER,
+        channel_id INTEGER,
+        reviewer_id INTEGER,
+        rejection_reason TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_staff_apps_open ON staff_applications(guild_id, user_id) WHERE status = 'pending'",
+    # ─── SELF-ROLE MENUS
+    """
+    CREATE TABLE IF NOT EXISTS selfrole_menus (
+        guild_id INTEGER NOT NULL,
+        message_id INTEGER PRIMARY KEY,
+        channel_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        color INTEGER NOT NULL DEFAULT 5793266,
+        image_url TEXT,
+        selection_mode TEXT NOT NULL DEFAULT 'multi',
+        max_roles INTEGER NOT NULL DEFAULT 1,
+        allow_remove INTEGER NOT NULL DEFAULT 1,
+        options_json TEXT NOT NULL DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
     # ─── WEB SESSIONS
     """
     CREATE TABLE IF NOT EXISTS web_sessions (

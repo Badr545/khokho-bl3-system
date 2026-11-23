@@ -87,6 +87,7 @@ COGS = [
     "cogs.autopublish", "cogs.sticky", "cogs.bump", "cogs.ai_automod",
     "cogs.custom_commands", "cogs.context_menus", "cogs.cloud_backup", "cogs.i18n",
     "cogs.music", "cogs.social_notif",
+    "cogs.vcrank",
 ]
 
 # ═══════════════════════════════════════════════════════════════════

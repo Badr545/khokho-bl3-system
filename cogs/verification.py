@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 
 import botconfig
+import config_manager
 
 # ═══════════════════════════════════════════════════════════════════
 # ─── CONFIG
@@ -218,6 +219,9 @@ class Verification(commands.Cog):
             return True
         if member.guild_permissions.manage_roles:
             return True
+        configured = config_manager.get_role(member.guild, "verification_staff_role")
+        if configured and configured in member.roles:
+            return True
         staff_names = (
             "verifier", "staff", "staff team", "moderator",
             "administrator", "helper", "superveseur",
@@ -265,7 +269,9 @@ class Verification(commands.Cog):
         if member.bot:
             return await ctx.send("❌ Bots!", delete_after=8)
 
-        role = ctx.guild.get_role(ROLE_VB)
+        role = config_manager.get_role(ctx.guild, "verified_role") or config_manager.get_role(ctx.guild, "member_role")
+        if role is None:
+            role = ctx.guild.get_role(ROLE_VB)
         if role is None:
             return await ctx.send(f"❌ Role `{ROLE_VB}` ma kaynch!")
 
@@ -343,10 +349,12 @@ class Verification(commands.Cog):
         if member.bot:
             return await ctx.send("❌ Bots!", delete_after=8)
 
-        role_vb = ctx.guild.get_role(ROLE_VB)
+        role_vb = config_manager.get_role(ctx.guild, "verified_role") or config_manager.get_role(ctx.guild, "member_role")
+        if role_vb is None:
+            role_vb = ctx.guild.get_role(ROLE_VB)
         role_vg = ctx.guild.get_role(ROLE_VG)
 
-        missing = [str(r) for r in (ROLE_VB, ROLE_VG) if ctx.guild.get_role(r) is None]
+        missing = [name for name, role in (("Verified", role_vb), ("Girl", role_vg)) if role is None]
         if missing:
             return await ctx.send(f"❌ Roles ma kaynin: {', '.join(f'`{m}`' for m in missing)}")
 
@@ -472,8 +480,14 @@ class Verification(commands.Cog):
             return await ctx.send(f"❌ Staff only!", delete_after=8)
 
         roles_to_remove = []
-        for rid in (ROLE_VB, ROLE_VG):
-            r = ctx.guild.get_role(rid)
+        role_ids = [
+            config_manager.get_role_id(ctx.guild, "verified_role"),
+            config_manager.get_role_id(ctx.guild, "member_role"),
+            ROLE_VB,
+            ROLE_VG,
+        ]
+        for rid in role_ids:
+            r = ctx.guild.get_role(rid) if rid else None
             if r and r in member.roles:
                 roles_to_remove.append(r)
 

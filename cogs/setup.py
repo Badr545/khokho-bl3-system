@@ -14,8 +14,243 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import asyncio
+import json
 from typing import Optional
 import config_manager
+from database.engine import execute, commit, query_one
+
+
+ROLE_SPECS = [
+    ("verified_role", "Verified", discord.Color.blue()),
+    ("member_role", "Verified", discord.Color.blue()),
+    ("unverified_role", "Unverified", discord.Color.light_grey()),
+    ("staff_role", "Staff", discord.Color.gold()),
+    ("muted_role", "Jail", discord.Color.dark_grey()),
+    ("jail_role", "Jail", discord.Color.dark_grey()),
+    ("verification_staff_role", "Verification Staff", discord.Color.green()),
+]
+
+CATEGORY_SPECS = [
+    ("Welcome", "WELCOME"),
+    ("Verification", "VERIFICATION"),
+    ("Jail", "JAIL"),
+    ("Staff", "STAFF"),
+    ("Logs & Audit", "LOGS"),
+    ("Voice", "VOICE"),
+]
+
+CHANNEL_SPECS = [
+    ("Welcome", "welcome_channel", "welcome"),
+    ("Verification", "verification_channel", "verification"),
+    ("Verification", "verification_log_channel", "verify-log"),
+    ("Jail", "jail_channel", "jail-chat"),
+    ("Logs & Audit", "logs_channel", "audit-log"),
+    ("Logs & Audit", "mod_logs_channel", "mod-log"),
+    ("Staff", "staff_applications_channel", "staff-applications"),
+    ("Staff", "staff_application_panel_channel", "apply-for-staff"),
+    ("Voice", "vc_rank_channel", "vc-rank"),
+]
+
+
+class VerificationButtonView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Verify Me", emoji="✅", style=discord.ButtonStyle.success, custom_id="setup:verify:button")
+    async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
+        member = interaction.user
+        if not isinstance(member, discord.Member):
+            return await interaction.response.send_message("Unable to verify in this context.", ephemeral=True)
+        verified = config_manager.get_role(interaction.guild, "verified_role") or config_manager.get_role(interaction.guild, "member_role")
+        unverified = config_manager.get_role(interaction.guild, "unverified_role")
+        if verified is None:
+            return await interaction.response.send_message("Verification role is not configured. Ask an administrator to run `/setup`.", ephemeral=True)
+        if verified in member.roles:
+            return await interaction.response.send_message("You are already verified.", ephemeral=True)
+        try:
+            await member.add_roles(verified, reason="Self-service verification")
+            if unverified and unverified in member.roles:
+                await member.remove_roles(unverified, reason="Self-service verification")
+        except discord.Forbidden:
+            return await interaction.response.send_message("I cannot update your roles. Please contact staff.", ephemeral=True)
+        except discord.HTTPException as exc:
+            return await interaction.response.send_message(f"Discord rejected the role update: {exc.text}", ephemeral=True)
+        await interaction.response.send_message("✅ You have been verified.", ephemeral=True)
+
+
+async def reconcile_server(guild: discord.Guild) -> dict:
+    """Idempotently create or reuse all core setup objects and persist IDs."""
+    report = {
+        "roles_created": [], "roles_reused": [],
+        "categories_created": [], "categories_reused": [],
+        "channels_created": [], "channels_reused": [],
+        "skipped": [],
+    }
+    cfg = config_manager.get_guild_config(guild)
+    roles = cfg.setdefault("roles", {})
+    channels = cfg.setdefault("channels", {})
+
+    category_cache = {}
+    category_keys = {
+        "Welcome": "welcome_category",
+        "Verification": "verification_category",
+        "Jail": "jail_category",
+        "Staff": "staff_category",
+        "Logs & Audit": "logs_category",
+        "Voice": "voice_category",
+    }
+    for display_name, key in CATEGORY_SPECS:
+        names = {display_name, display_name.lower(), key}
+        category = next((c for c in guild.categories if c.name.lower().strip() in {n.lower() for n in names}), None)
+        if category:
+            category_cache[key] = category
+            category_cache[display_name] = category
+            config_manager.set_category(guild.id, category_keys[display_name], category.id)
+            report["categories_reused"].append(category.name)
+            continue
+        try:
+            category = await guild.create_category(display_name, reason="Self-healing /setup reconciliation")
+            category_cache[key] = category
+            category_cache[display_name] = category
+            config_manager.set_category(guild.id, category_keys[display_name], category.id)
+            report["categories_created"].append(category.name)
+            await asyncio.sleep(0.2)
+        except discord.HTTPException as exc:
+            report["skipped"].append(f"Category {display_name}: {exc}")
+
+    for key, name, color in ROLE_SPECS:
+        configured_id = roles.get(key)
+        role = guild.get_role(configured_id) if configured_id else None
+        if role is None:
+            role = discord.utils.get(guild.roles, name=name)
+        if role:
+            config_manager.set_role(guild.id, key, role.id)
+            report["roles_reused"].append(name)
+            if key == "verification_staff_role":
+                try:
+                    await role.edit(
+                        permissions=discord.Permissions(manage_roles=True, view_audit_log=True),
+                        reason="Configure verification staff permissions",
+                    )
+                except discord.HTTPException:
+                    pass
+            continue
+        try:
+            role = await guild.create_role(
+                name=name,
+                color=color,
+                reason="Self-healing /setup reconciliation",
+                hoist=key in {"staff_role", "verification_staff_role", "jail_role", "muted_role"},
+            )
+            config_manager.set_role(guild.id, key, role.id)
+            report["roles_created"].append(name)
+            if key == "verification_staff_role":
+                try:
+                    await role.edit(
+                        permissions=discord.Permissions(manage_roles=True, view_audit_log=True),
+                        reason="Configure verification staff permissions",
+                    )
+                except discord.HTTPException:
+                    pass
+            await asyncio.sleep(0.2)
+        except discord.HTTPException as exc:
+            report["skipped"].append(f"Role {name}: {exc}")
+
+    for category_name, key, name in CHANNEL_SPECS:
+        category = category_cache.get(category_name)
+        configured_id = channels.get(key)
+        channel = guild.get_channel(configured_id) if configured_id else None
+        if channel is None:
+            channel = discord.utils.get(guild.text_channels, name=name)
+        if channel:
+            config_manager.set_channel(guild.id, key, channel.id)
+            report["channels_reused"].append(channel.name)
+            continue
+        try:
+            channel = await guild.create_text_channel(
+                name=name,
+                category=category,
+                reason="Self-healing /setup reconciliation",
+            )
+            config_manager.set_channel(guild.id, key, channel.id)
+            report["channels_created"].append(channel.name)
+            await asyncio.sleep(0.2)
+        except discord.HTTPException as exc:
+            report["skipped"].append(f"Channel #{name}: {exc}")
+
+    # Reconcile standard verification and jail bindings.
+    verified = config_manager.get_role(guild, "verified_role") or config_manager.get_role(guild, "member_role")
+    jail = config_manager.get_role(guild, "jail_role") or config_manager.get_role(guild, "muted_role")
+    unverified = config_manager.get_role(guild, "unverified_role")
+    if verified:
+        config_manager.set_role(guild.id, "member_role", verified.id)
+    if jail:
+        config_manager.set_role(guild.id, "muted_role", jail.id)
+    if unverified:
+        for ch_key in ("verification_channel", "welcome_channel"):
+            ch = config_manager.get_channel(guild, ch_key)
+            if ch:
+                try:
+                    await ch.set_permissions(unverified, view_channel=True, send_messages=False)
+                except discord.HTTPException:
+                    pass
+
+    verification_channel = config_manager.get_channel(guild, "verification_channel")
+    if verification_channel:
+        verification_message = None
+        try:
+            async for message in verification_channel.history(limit=20):
+                if message.author.id == guild.me.id and message.embeds:
+                    if message.embeds[0].title == "✅ Server Verification":
+                        verification_message = message
+                        break
+        except discord.HTTPException:
+            pass
+        embed = discord.Embed(
+            title="✅ Server Verification",
+            description="Press **Verify Me** to receive the Verified role.",
+            color=discord.Color.green(),
+        )
+        view = VerificationButtonView()
+        try:
+            if verification_message:
+                await verification_message.edit(embed=embed, view=view)
+                report["messages_reused"] = ["Verification panel"]
+            else:
+                await verification_channel.send(embed=embed, view=view)
+                report["messages_created"] = ["Verification panel"]
+        except discord.Forbidden as exc:
+            report["skipped"].append(f"Verification panel: {exc}")
+
+    ladder_thresholds = list(range(1, 11))
+    ladder = []
+    for level, threshold in enumerate(ladder_thresholds, start=1):
+        role_name = f"VC Level {level}"
+        role = discord.utils.get(guild.roles, name=role_name)
+        if role is None:
+            try:
+                role = await guild.create_role(
+                    name=role_name,
+                    color=discord.Color.from_rgb(88, 101, 242),
+                    hoist=False,
+                    reason="Voice rank ladder setup",
+                )
+                report["roles_created"].append(role_name)
+            except discord.HTTPException as exc:
+                report["skipped"].append(f"Rank role {role_name}: {exc}")
+                continue
+        else:
+            report["roles_reused"].append(role_name)
+        ladder.append({"threshold": threshold, "role_id": role.id, "name": role_name})
+    execute(
+        "INSERT INTO vc_rank_config (guild_id, ladder_json) VALUES (?, ?) "
+        "ON CONFLICT(guild_id) DO UPDATE SET ladder_json=excluded.ladder_json",
+        (guild.id, json.dumps(ladder)),
+    )
+    commit()
+
+    await config_manager.save_configs_async()
+    return report
 
 
 def build_main_setup_embed(guild: discord.Guild) -> discord.Embed:
@@ -336,6 +571,38 @@ class FeaturesSubView(discord.ui.View):
 # ─── MAIN SETUP VIEW (DASHBOARD)
 # ═══════════════════════════════════════════════════════════════════
 
+class ConfirmReconcileView(discord.ui.View):
+    def __init__(self, author: discord.Member):
+        super().__init__(timeout=180)
+        self.author = author
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author.id:
+            await interaction.response.send_message("This setup session is not yours.", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Confirm Reconcile", emoji="✅", style=discord.ButtonStyle.success)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        report = await reconcile_server(interaction.guild)
+        lines = [
+            f"✅ Created roles: {len(report['roles_created'])}",
+            f"♻️ Reused roles: {len(report['roles_reused'])}",
+            f"✅ Created categories: {len(report['categories_created'])}",
+            f"♻️ Reused categories: {len(report['categories_reused'])}",
+            f"✅ Created channels: {len(report['channels_created'])}",
+            f"♻️ Reused channels: {len(report['channels_reused'])}",
+        ]
+        if report["skipped"]:
+            lines.append("⚠️ Skipped:")
+            lines.extend(f"- {item}" for item in report["skipped"][:10])
+        await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+    @discord.ui.button(label="Cancel", emoji="✖️", style=discord.ButtonStyle.danger)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(content="Setup reconciliation cancelled.", embed=None, view=None)
+
 class SetupMainView(discord.ui.View):
     def __init__(self, author: discord.Member):
         super().__init__(timeout=300)
@@ -397,6 +664,12 @@ class SetupMainView(discord.ui.View):
         Automatically creates missing standard channels and roles with appropriate permissions,
         and saves their IDs directly to config_manager.
         """
+        await interaction.response.edit_message(
+            content="⚠️ Confirm server reconciliation?\nThis will create or reuse missing categories, channels, roles, rank roles, and setup panels.",
+            embed=None,
+            view=ConfirmReconcileView(self.author),
+        )
+        return
         guild = interaction.guild
         bot_member = guild.me
 
@@ -521,6 +794,10 @@ class Setup(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        self.bot.add_view(VerificationButtonView())
 
     @app_commands.command(
         name="setup",

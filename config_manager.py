@@ -37,6 +37,9 @@ DEFAULT_ROLES = {
     "member_role": None,      # Verified / Member Role ID
     "unverified_role": None,  # Unverified / Muted / Pending Role ID
     "muted_role": None,       # Jail / Muted Role ID
+    "verification_staff_role": None,
+    "verified_role": None,
+    "jail_role": None,
 }
 
 DEFAULT_CHANNELS = {
@@ -46,6 +49,21 @@ DEFAULT_CHANNELS = {
     "leaves_channel": None,       # Member leave channel
     "tickets_channel": None,      # Tickets panel channel
     "casino_channel": None,       # Casino / Gambling channel
+    "verification_channel": None,
+    "verification_log_channel": None,
+    "jail_channel": None,
+    "staff_applications_channel": None,
+    "staff_application_panel_channel": None,
+    "vc_rank_channel": None,
+}
+
+DEFAULT_CATEGORIES = {
+    "welcome_category": None,
+    "verification_category": None,
+    "jail_category": None,
+    "staff_category": None,
+    "logs_category": None,
+    "voice_category": None,
 }
 
 
@@ -55,6 +73,7 @@ def _get_default_config(guild_id: int | str, guild_name: str = "") -> Dict[str, 
         "guild_name": guild_name,
         "roles": dict(DEFAULT_ROLES),
         "channels": dict(DEFAULT_CHANNELS),
+        "categories": dict(DEFAULT_CATEGORIES),
         "features": dict(DEFAULT_FEATURES),
     }
 
@@ -139,6 +158,12 @@ def get_guild_config(guild: discord.Guild | int | str, guild_name: str = "") -> 
                 for k, v in DEFAULT_FEATURES.items():
                     cfg["features"].setdefault(k, v)
 
+            if "categories" not in cfg:
+                cfg["categories"] = dict(DEFAULT_CATEGORIES)
+            else:
+                for k, v in DEFAULT_CATEGORIES.items():
+                    cfg["categories"].setdefault(k, v)
+
             if guild_name:
                 cfg["guild_name"] = guild_name
 
@@ -185,6 +210,16 @@ def set_channel(guild_id: int | str, channel_key: str, channel_id: Optional[int]
     with _lock:
         cfg["channels"][channel_key] = channel_id
         _save_configs_sync()
+
+def set_category(guild_id: int | str, category_key: str, category_id: Optional[int]):
+    cfg = get_guild_config(guild_id)
+    with _lock:
+        cfg.setdefault("categories", dict(DEFAULT_CATEGORIES))[category_key] = category_id
+        _save_configs_sync()
+
+def get_category(guild: discord.Guild, category_key: str) -> Optional[discord.CategoryChannel]:
+    cid = get_guild_config(guild)["categories"].get(category_key)
+    return guild.get_channel(cid) if cid else None
 
 
 def get_channel_id(guild: discord.Guild | int | str, channel_key: str) -> Optional[int]:

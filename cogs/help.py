@@ -79,6 +79,8 @@ HELP_CATEGORIES = {
             ("rankcard", "Rank Card dyalk",   "/rankcard [@user]",   "public"),
             ("rcard",    "Rank Card (prefix)", "&rcard [@user]",      "public"),
             ("rank",     "Rank (info)",       "/rank [@user]",       "public"),
+            ("vcrank",   "Voice activity rank", "/vcrank [@user]", "public"),
+            ("rank-top", "Voice activity leaderboard", "/rank-top", "public"),
             ("levels",   "Top 10 levels",     "/levels",             "public"),
             ("toprank",  "Top 10 rank",       "/toprank",            "public"),
         ],
@@ -241,6 +243,16 @@ HELP_CATEGORIES = {
             ("vcheck",   "Chouf info dyal verification",   "+vcheck @user",        "verification"),
             ("vlist",    "List dyal pending w verified",   "+vlist [pending|verified]", "verification"),
             ("unverify", "Hyed l-verification",            "+unverify @user",      "verification"),
+        ],
+    },
+    "🧩 Server Systems": {
+        "description": "Setup, self roles, and staff applications",
+        "commands": [
+            ("setup", "Reconcile and configure server resources", "/setup", "admin_only"),
+            ("selfrole-setup", "Create or edit a persistent self-role menu", "/selfrole-setup", "admin_only"),
+            ("selfrole-delete", "Delete a persistent self-role menu", "/selfrole-delete <message_id>", "admin_only"),
+            ("applystaff-setup", "Create or repost the staff application panel", "/applystaff-setup", "admin_only"),
+            ("vcrank-config", "Configure voice XP and anti-AFK rules", "/vcrank-config", "admin_only"),
         ],
     },
     "🎭 Roles": {

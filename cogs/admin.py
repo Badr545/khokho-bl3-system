@@ -16,6 +16,7 @@ import json
 import os
 import asyncio
 import uuid
+import config_manager
 
 # ═══════════════════════════════════════════════════════════════════
 # ─── JAIL CONFIG
@@ -126,7 +127,9 @@ class Admin(commands.Cog):
                 pass
 
     async def _jail_member(self, guild, member, reason: str):
-        jail_role = guild.get_role(JAIL_ROLE_ID)
+        jail_role = config_manager.get_role(guild, "jail_role") or config_manager.get_role(guild, "muted_role")
+        if jail_role is None:
+            jail_role = guild.get_role(JAIL_ROLE_ID)
         if jail_role is None:
             return False, "Jail role ma kaynch!"
         if guild.me.top_role.position <= jail_role.position:
@@ -136,7 +139,7 @@ class Admin(commands.Cog):
 
         saved_roles = [
             r.id for r in member.roles
-            if not r.is_default() and r.id != JAIL_ROLE_ID
+            if not r.is_default() and r.id != jail_role.id
         ]
         JAILED.setdefault(guild.id, {})[member.id] = {
             "roles": saved_roles,
@@ -149,7 +152,7 @@ class Admin(commands.Cog):
         try:
             removable = [
                 r for r in member.roles
-                if not r.is_default() and r.id != JAIL_ROLE_ID
+                if not r.is_default() and r.id != jail_role.id
             ]
             if removable:
                 await member.remove_roles(*removable, reason=f"Auto-jail: {reason}")
@@ -591,9 +594,11 @@ class Admin(commands.Cog):
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
             return await ctx.send("❌ Role fo9 dyalek!")
 
-        jail_role = ctx.guild.get_role(JAIL_ROLE_ID)
+        jail_role = config_manager.get_role(ctx.guild, "jail_role") or config_manager.get_role(ctx.guild, "muted_role")
         if jail_role is None:
-            return await ctx.send(f"❌ Jail role (`{JAIL_ROLE_ID}`) ma kaynch!")
+            jail_role = ctx.guild.get_role(JAIL_ROLE_ID)
+        if jail_role is None:
+            return await ctx.send("❌ Jail role is not configured. Run `/setup`.")
         if ctx.guild.me.top_role.position <= jail_role.position:
             return await ctx.send("❌ Jail role fo9 role dyal bot! 7arrek role dyal bot fo9.")
 
@@ -608,7 +613,7 @@ class Admin(commands.Cog):
         ):
             return
 
-        saved_roles = [r.id for r in member.roles if not r.is_default() and r.id != JAIL_ROLE_ID]
+        saved_roles = [r.id for r in member.roles if not r.is_default() and r.id != jail_role.id]
         JAILED.setdefault(guild_id, {})[member.id] = {
             "roles": saved_roles,
             "reason": reason,
@@ -618,7 +623,7 @@ class Admin(commands.Cog):
         _save_jailed()
 
         try:
-            removable = [r for r in member.roles if not r.is_default() and r.id != JAIL_ROLE_ID]
+            removable = [r for r in member.roles if not r.is_default() and r.id != jail_role.id]
             if removable:
                 await member.remove_roles(*removable, reason=f"Jail: {reason}")
             await member.add_roles(jail_role, reason=f"Jail: {reason}")
@@ -651,7 +656,9 @@ class Admin(commands.Cog):
             pass
 
     async def _do_unjail(self, ctx: commands.Context, member: discord.Member):
-        jail_role = ctx.guild.get_role(JAIL_ROLE_ID)
+        jail_role = config_manager.get_role(ctx.guild, "jail_role") or config_manager.get_role(ctx.guild, "muted_role")
+        if jail_role is None:
+            jail_role = ctx.guild.get_role(JAIL_ROLE_ID)
         guild_id = ctx.guild.id
         data = JAILED.get(guild_id, {}).get(member.id)
 

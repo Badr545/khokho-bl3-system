@@ -71,28 +71,6 @@ class Levels(commands.Cog):
 
         _save_levels()
 
-    @app_commands.command(name="rank", description="Chouf l-rank dyalek")
-    @app_commands.describe(member="L-user")
-    async def rank(self, interaction: discord.Interaction, member: discord.Member = None):
-        if member is None:
-            member = interaction.user
-        data = self._get_user(interaction.guild.id, member.id)
-
-        needed = xp_for_level(data["level"] + 1)
-        progress = int((data["xp"] / needed) * 20) if needed else 0
-        bar = "█" * progress + "░" * (20 - progress)
-
-        embed = discord.Embed(
-            title=f"📊 Rank — {member.name}",
-            color=discord.Color.blue(),
-        )
-        embed.set_thumbnail(url=member.display_avatar.url)
-        embed.add_field(name="🎯 Level", value=f"`{data['level']}`", inline=True)
-        embed.add_field(name="✨ XP", value=f"`{data['xp']:,} / {needed:,}`", inline=True)
-        embed.add_field(name="💬 Messages", value=f"`{data['messages']:,}`", inline=True)
-        embed.add_field(name="📈 Progress", value=f"`{bar}`", inline=False)
-        await interaction.response.send_message(embed=embed)
-
     @app_commands.command(name="levels", description="Top 10 levels")
     async def levels(self, interaction: discord.Interaction):
         guild_data = LEVELS.get(interaction.guild.id, {})
@@ -116,17 +94,6 @@ class Levels(commands.Cog):
                 inline=False,
             )
         await interaction.response.send_message(embed=embed)
-
-    @commands.command(name="rank")
-    async def rank_prefix(self, ctx: commands.Context, member: discord.Member = None):
-        """&rank [@user]"""
-        if member is None:
-            member = ctx.author
-        data = self._get_user(ctx.guild.id, member.id)
-        needed = xp_for_level(data["level"] + 1)
-        await ctx.send(
-            f"📊 **{member.name}** — Level `{data['level']}` | XP: `{data['xp']:,}/{needed:,}` | Messages: `{data['messages']:,}`"
-        )
 
     @commands.command(name="levels")
     async def levels_prefix(self, ctx: commands.Context):

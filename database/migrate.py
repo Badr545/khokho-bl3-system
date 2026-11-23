@@ -25,6 +25,16 @@ def _backup_dir() -> str:
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     path = f"data/json_backup_{ts}"
     os.makedirs(path, exist_ok=True)
+    for source in (
+        os.getenv("DB_PATH", "data/bot.db"),
+        "data/features.db",
+        "data/guild_configs.json",
+    ):
+        if os.path.exists(source):
+            try:
+                shutil.copy2(source, os.path.join(path, os.path.basename(source)))
+            except Exception as exc:
+                print(f"⚠️  Backup failed for {source}: {exc}")
     return path
 
 
