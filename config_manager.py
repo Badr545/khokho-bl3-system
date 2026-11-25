@@ -68,11 +68,14 @@ DEFAULT_CATEGORIES = {
     "voice_category": None,
 }
 
+DEFAULT_PREFIX = "&"
+
 
 def _get_default_config(guild_id: int | str, guild_name: str = "") -> Dict[str, Any]:
     return {
         "guild_id": int(guild_id),
         "guild_name": guild_name,
+        "prefix": DEFAULT_PREFIX,
         "roles": dict(DEFAULT_ROLES),
         "channels": dict(DEFAULT_CHANNELS),
         "categories": dict(DEFAULT_CATEGORIES),
@@ -142,6 +145,7 @@ def get_guild_config(guild: discord.Guild | int | str, guild_name: str = "") -> 
         else:
             # Ensure schema integrity for older or incomplete configs
             cfg = _CONFIGS[gid]
+            cfg.setdefault("prefix", DEFAULT_PREFIX)
             if "roles" not in cfg:
                 cfg["roles"] = dict(DEFAULT_ROLES)
             else:

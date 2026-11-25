@@ -23,7 +23,7 @@ intents.presences = True
 
 
 async def get_prefix(bot, message):
-    prefix = get_guild_config(message.guild)["prefix"] if message.guild else "&"
+    prefix = get_guild_config(message.guild).get("prefix", "&") if message.guild else "&"
     return commands.when_mentioned_or(prefix, "+", "-")(bot, message)
 
 
