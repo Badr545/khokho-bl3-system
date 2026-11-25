@@ -1,24 +1,30 @@
 # cogs/tempverifvc.py
 # =====================================================================
-# ─── TEMP VERIFICATION VC — Kaycreyi VC khass l-member 7ta yt-verifa
-# =====================================================================
 import discord
 from discord.ext import commands
 import asyncio
 
 # ⚙️ CONFIG
-TRIGGER_VC_NAME = "GET VERIFIED"       # 👈 Smiya dyal VC li ydkhol liha l-member
+TRIGGER_VC_NAME = "GET VERIFIED"
 
 # 🆔 IDs dyal les roles
 VERIF_ROLE_ID = 1556373741510860890
-CM_ROLE_ID = 1549788949663322142
+CM_ROLE_ID    = 1549788949663322142
+
+# 👇 ZID HNA KOLA LES ROLES li bghitihom ykoun 3ndhom access l VC
+STAFF_ROLE_IDS = [
+    VERIF_ROLE_ID,
+    CM_ROLE_ID,
+    1556373741510860890,  # 👈 zid role id hna
+]
+
 
 class TempVerifyVC(commands.Cog):
     """System dyal VC m'wa9at bash l-member yt-verifa"""
 
     def __init__(self, bot):
         self.bot = bot
-        self.temp_channels = {}  # {channel_id: owner_id}
+        self.temp_channels = {}
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -27,19 +33,15 @@ class TempVerifyVC(commands.Cog):
 
         guild = member.guild
 
-        # ═══════════════════════════════════════════════════════════
-        # 1. MEMBER DAKHEL L-TRIGGER (GET VERIFIED)
-        # ═══════════════════════════════════════════════════════════
+        # 1. MEMBER DAKHEL L-TRIGGER
         if after.channel is not None and after.channel.name == TRIGGER_VC_NAME:
-            
-            # Check wach 3ndou deja VC mfto7a
+
             existing_vc = None
             for ch_id, owner_id in self.temp_channels.items():
                 if owner_id == member.id:
                     existing_vc = guild.get_channel(ch_id)
                     break
 
-            # Ila 3ndou, ghir nqlo liha
             if existing_vc:
                 try:
                     await member.move_to(existing_vc)
@@ -47,7 +49,6 @@ class TempVerifyVC(commands.Cog):
                     pass
                 return
 
-            # Ila ma3ndouch, nsaybo wa7ed jdid
             category = after.channel.category
             if category is None:
                 category = discord.utils.get(guild.categories, name="🔐")
@@ -58,31 +59,42 @@ class TempVerifyVC(commands.Cog):
                         print(f"❌ Bot ma 3ndouch permission bash y-creyi Category f {guild.name}")
                         return
 
-            # Permissions
+            # ─── Permissions ───
             overwrites = {
                 guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, send_messages=True, read_message_history=True),
+                member: discord.PermissionOverwrite(
+                    view_channel=True,
+                    connect=True,
+                    speak=True,
+                    send_messages=True,
+                    read_message_history=True,
+                ),
             }
 
-            for role in guild.roles:
-                if role.permissions.manage_channels or role.permissions.moderate_members:
-                    overwrites[role] = discord.PermissionOverwrite(view_channel=True, connect=True, send_messages=True, read_message_history=True)
+            # ✅ Daba kayakhod GHIR les roles li f STAFF_ROLE_IDS
+            for role_id in STAFF_ROLE_IDS:
+                role = guild.get_role(role_id)
+                if role is not None:
+                    overwrites[role] = discord.PermissionOverwrite(
+                        view_channel=True,
+                        connect=True,
+                        speak=True,
+                        send_messages=True,
+                        read_message_history=True,
+                    )
 
             try:
-                # Smiya dyal VC: 🔐 | DisplayName
                 new_vc = await guild.create_voice_channel(
                     name=f"🔐 | {member.display_name}",
                     category=category,
                     overwrites=overwrites,
-                    reason=f"Verification VC l {member.name}"
+                    reason=f"Verification VC l {member.name}",
                 )
                 self.temp_channels[new_vc.id] = member.id
                 await member.move_to(new_vc)
                 print(f"✅ Tsayeb VC l {member.name}")
 
-                # ═══════════════════════════════════════════════════════════
-                # Sift message Professional (Embed) f chat dyal VC
-                # ═══════════════════════════════════════════════════════════
+                # ─── Embed message ───
                 try:
                     embed = discord.Embed(
                         title="🔐 Verification Required",
@@ -92,20 +104,21 @@ class TempVerifyVC(commands.Cog):
                             f"Please wait patiently, a staff member will be with you shortly to complete your verification.\n\n"
                             f"**Please do not leave this channel until you are verified.**"
                         ),
-                        color=discord.Color.blue() # T9der tbedelha l discord.Color.blurple() wla ay lon bghiti
+                        color=discord.Color.blue(),
                     )
-                    
-                    # Zdt les roles f field bach ybano mzyanin
                     embed.add_field(
                         name="Authorized Staff",
-                        value=f"<@&{VERIF_ROLE_ID}> | <@&{CM_ROLE_ID}>",
-                        inline=False
+                        value=" ".join(f"<@&{rid}>" for rid in STAFF_ROLE_IDS) or "—",
+                        inline=False,
                     )
-                    
-                    embed.set_footer(text="Verification System", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
+                    embed.set_footer(
+                        text="Verification System",
+                        icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None,
+                    )
 
-                    await new_vc.send(content=f"{member.mention} <@&{VERIF_ROLE_ID}> <@&{CM_ROLE_ID}>", embed=embed)
-                    
+                    mentions = f"{member.mention} " + " ".join(f"<@&{rid}>" for rid in STAFF_ROLE_IDS)
+                    await new_vc.send(content=mentions.strip(), embed=embed)
+
                 except discord.Forbidden:
                     print(f"⚠️ Ma 9dertch nsift message f VC dyal {member.name} (Missing Permissions).")
                 except Exception as e:
@@ -114,13 +127,11 @@ class TempVerifyVC(commands.Cog):
             except Exception as e:
                 print(f"❌ Erreur f creation dyal VC: {e}")
 
-        # ═══════════════════════════════════════════════════════════
-        # 2. MEMBER KHREJ MN TEMP VC (Cleanup)
-        # ═══════════════════════════════════════════════════════════
+        # 2. CLEANUP
         if before.channel is not None and before.channel.id in self.temp_channels:
             await asyncio.sleep(1.5)
             vc = guild.get_channel(before.channel.id)
-            
+
             if vc and len(vc.members) == 0:
                 try:
                     await vc.delete(reason="Verification VC empty")
