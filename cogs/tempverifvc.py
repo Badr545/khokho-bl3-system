@@ -11,13 +11,10 @@ TRIGGER_VC_NAME = "GET VERIFIED"
 VERIF_ROLE_ID = 1556373741510860890
 CM_ROLE_ID    = 1549788949663322142
 
-# 👇 ZID HNA KOLA LES ROLES li bghitihom ykoun 3ndhom access l VC
 STAFF_ROLE_IDS = [
     VERIF_ROLE_ID,
     CM_ROLE_ID,
-    1556373741510860890,  # 👈 zid role id hna
 ]
-
 
 class TempVerifyVC(commands.Cog):
     """System dyal VC m'wa9at bash l-member yt-verifa"""
@@ -71,8 +68,10 @@ class TempVerifyVC(commands.Cog):
                 ),
             }
 
-            # ✅ Daba kayakhod GHIR les roles li f STAFF_ROLE_IDS
-            for role_id in STAFF_ROLE_IDS:
+            # Remover les doublons
+            unique_staff_roles = list(dict.fromkeys(STAFF_ROLE_IDS))
+
+            for role_id in unique_staff_roles:
                 role = guild.get_role(role_id)
                 if role is not None:
                     overwrites[role] = discord.PermissionOverwrite(
@@ -106,17 +105,16 @@ class TempVerifyVC(commands.Cog):
                         ),
                         color=discord.Color.blue(),
                     )
-                    embed.add_field(
-                        name="Authorized Staff",
-                        value=" ".join(f"<@&{rid}>" for rid in STAFF_ROLE_IDS) or "—",
-                        inline=False,
-                    )
+                    
+                    # ❌ HNA 7YEDT L-FIELD DYAL "AUTHORIZED STAFF"
+                    
                     embed.set_footer(
                         text="Verification System",
                         icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None,
                     )
 
-                    mentions = f"{member.mention} " + " ".join(f"<@&{rid}>" for rid in STAFF_ROLE_IDS)
+                    # L-ping kayb9a f l-content bach l-staff yt-notifaw
+                    mentions = f"{member.mention} " + " ".join(f"<@&{rid}>" for rid in unique_staff_roles)
                     await new_vc.send(content=mentions.strip(), embed=embed)
 
                 except discord.Forbidden:
