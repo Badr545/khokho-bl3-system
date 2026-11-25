@@ -70,6 +70,13 @@ class StaffApplyModal(discord.ui.Modal, title="Apply for Staff"):
             )
             commit_feat()
             return await interaction.response.send_message("I cannot post applications in the configured channel.", ephemeral=True)
+        except discord.HTTPException as exc:
+            execute_feat(
+                "UPDATE staff_applications SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (application["id"],),
+            )
+            commit_feat()
+            return await interaction.response.send_message(f"Unable to post your application: {exc.text}", ephemeral=True)
         await interaction.response.send_message("✅ Your staff application was submitted.", ephemeral=True)
 
 
@@ -85,9 +92,11 @@ class RejectionModal(discord.ui.Modal, title="Reject Staff Application"):
         if not row:
             return await interaction.response.send_message("This application is no longer pending.", ephemeral=True)
         member = interaction.guild.get_member(row["user_id"])
+        dm_sent = False
         if member:
             try:
                 await member.send(f"Your staff application was **REJECTED**.\nReason: {self.reason.value}")
+                dm_sent = True
             except discord.Forbidden:
                 pass
         execute_feat(
@@ -95,7 +104,10 @@ class RejectionModal(discord.ui.Modal, title="Reject Staff Application"):
             (interaction.user.id, self.reason.value, self.application_id),
         )
         commit_feat()
-        await interaction.response.send_message("Application rejected.", ephemeral=True)
+        await interaction.response.send_message(
+            "Application rejected." if dm_sent else "Application rejected. The applicant could not be reached by DM.",
+            ephemeral=True,
+        )
 
 
 class ApplicationReviewView(discord.ui.View):
@@ -128,19 +140,28 @@ class ApplicationReviewView(discord.ui.View):
         staff_role = config_manager.get_role(interaction.guild, "staff_role")
         if member is None or staff_role is None:
             return await interaction.response.send_message("Applicant or Staff role could not be found.", ephemeral=True)
+        role_granted = False
         try:
             await member.add_roles(staff_role, reason=f"Staff application #{self.application_id} approved")
-            await member.send("Your staff application was **APPROVED**.")
+            role_granted = True
         except discord.Forbidden:
-            pass
+            return await interaction.response.send_message("I cannot grant the Staff role. Check role hierarchy and permissions.", ephemeral=True)
         except discord.HTTPException as exc:
             return await interaction.response.send_message(f"Role update failed: {exc.text}", ephemeral=True)
+        dm_sent = True
+        try:
+            await member.send("Your staff application was **APPROVED**.")
+        except discord.Forbidden:
+            dm_sent = False
         execute_feat(
             "UPDATE staff_applications SET status='approved', reviewer_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
             (interaction.user.id, self.application_id),
         )
         commit_feat()
-        await interaction.response.send_message("Application approved.", ephemeral=True)
+        await interaction.response.send_message(
+            "Application approved." if dm_sent else "Application approved, but the applicant could not be reached by DM.",
+            ephemeral=True,
+        )
 
     @discord.ui.button(label="Reject", emoji="❌", style=discord.ButtonStyle.danger, custom_id="staff-app:reject")
     async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -206,6 +227,7 @@ class Applications(commands.Cog):
 class StaffApplicationPanelView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+        self.children[0].custom_id = "staff-app:apply:panel"
 
     @discord.ui.button(label="Apply for Staff", emoji="📝", style=discord.ButtonStyle.primary, custom_id="staff-app:apply")
     async def apply(self, interaction: discord.Interaction, button: discord.ui.Button):

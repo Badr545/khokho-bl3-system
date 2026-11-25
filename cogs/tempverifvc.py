@@ -5,13 +5,12 @@
 import discord
 from discord.ext import commands
 import asyncio
+import config_manager
 
 # ⚙️ CONFIG
 TRIGGER_VC_NAME = "GET VERIFIED"       # 👈 Smiya dyal VC li ydkhol liha l-member
 
 # 🆔 IDs dyal les roles
-VERIF_ROLE_ID = 1556373741510860890
-CM_ROLE_ID = 1549788949663322142
 
 class TempVerifyVC(commands.Cog):
     """System dyal VC m'wa9at bash l-member yt-verifa"""
@@ -26,6 +25,8 @@ class TempVerifyVC(commands.Cog):
             return
 
         guild = member.guild
+        verification_role = config_manager.get_role(guild, "verified_role") or config_manager.get_role(guild, "member_role")
+        verification_staff_role = config_manager.get_role(guild, "verification_staff_role")
 
         # ═══════════════════════════════════════════════════════════
         # 1. MEMBER DAKHEL L-TRIGGER (GET VERIFIED)
@@ -98,13 +99,14 @@ class TempVerifyVC(commands.Cog):
                     # Zdt les roles f field bach ybano mzyanin
                     embed.add_field(
                         name="Authorized Staff",
-                        value=f"<@&{VERIF_ROLE_ID}> | <@&{CM_ROLE_ID}>",
+                        value=verification_staff_role.mention if verification_staff_role else "Verification Staff",
                         inline=False
                     )
                     
                     embed.set_footer(text="Verification System", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
 
-                    await new_vc.send(content=f"{member.mention} <@&{VERIF_ROLE_ID}> <@&{CM_ROLE_ID}>", embed=embed)
+                    staff_ping = verification_staff_role.mention if verification_staff_role else ""
+                    await new_vc.send(content=f"{member.mention} {staff_ping}".strip(), embed=embed)
                     
                 except discord.Forbidden:
                     print(f"⚠️ Ma 9dertch nsift message f VC dyal {member.name} (Missing Permissions).")

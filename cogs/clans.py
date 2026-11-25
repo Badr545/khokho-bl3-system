@@ -29,10 +29,16 @@ CLANS = _load()
 # ═══════════════════════════════════════════════════════════════════
 # ─── ⚙️ L-IDs DYAL LES ROLES
 # ═══════════════════════════════════════════════════════════════════
-CLAN_MANAGER_ROLE_ID = 1570285658482679829    
-CLAN_LEADER_ROLE_ID = 1570285101185765416     
-CLAN_COLEADER_ROLE_ID = 1570285368174190592   
-CLAN_OF_THE_WEEK_ROLE_ID = 1570312239217647768 
+def _env_role_id(name: str) -> int:
+    try:
+        return int(os.getenv(name, "0") or "0")
+    except ValueError:
+        return 0
+
+CLAN_MANAGER_ROLE_ID = _env_role_id("ROLE_CLAN_MANAGER")
+CLAN_LEADER_ROLE_ID = _env_role_id("ROLE_CLAN_LEADER")
+CLAN_COLEADER_ROLE_ID = _env_role_id("ROLE_CLAN_COLEADER")
+CLAN_OF_THE_WEEK_ROLE_ID = _env_role_id("ROLE_CLAN_OF_THE_WEEK")
 # ═══════════════════════════════════════════════════════════════════
 
 # ═══════════════════════════════════════════════════════════════════

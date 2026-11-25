@@ -1,11 +1,13 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(case_sensitive=True, extra="allow")
+
     PROJECT_NAME: str = "Khokho Bl3 V3 API"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = os.getenv("NEXTAUTH_SECRET", "")
@@ -38,10 +40,6 @@ class Settings(BaseSettings):
         "CORS_ORIGINS",
         "http://localhost:3000,http://127.0.0.1:3000",
     )
-
-    class Config:
-        case_sensitive = True
-        extra = "allow"
 
     @property
     def cors_origin_list(self) -> list[str]:

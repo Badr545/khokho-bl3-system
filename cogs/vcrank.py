@@ -55,9 +55,7 @@ class VCRank(commands.Cog):
             return False
         if state.channel.id in config["excluded_channel_ids"]:
             return False
-        if config["anti_afk_muted"] and state.mute:
-            return False
-        if config["anti_afk_deafened"] and state.deaf:
+        if config["anti_afk_muted"] and config["anti_afk_deafened"] and state.mute and state.deaf:
             return False
         if config["anti_afk_alone"]:
             humans = [m for m in state.channel.members if not m.bot]

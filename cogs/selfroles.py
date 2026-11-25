@@ -90,17 +90,18 @@ class SelfRoleModal(discord.ui.Modal, title="Create Self-Role Menu"):
     channel_id = discord.ui.TextInput(label="Target channel ID", required=True, max_length=25)
     title_field = discord.ui.TextInput(label="Embed title", required=True, max_length=100)
     description_field = discord.ui.TextInput(label="Embed description", required=True, style=discord.TextStyle.paragraph, max_length=1000)
-    color_field = discord.ui.TextInput(label="Color (hex)", required=False, placeholder="5865F2", max_length=7)
-    image_field = discord.ui.TextInput(label="Optional image URL", required=False, max_length=300)
     options_field = discord.ui.TextInput(
         label="Roles: role_id|label|emoji (one per line)",
         required=True,
         style=discord.TextStyle.paragraph,
-        max_length=4000,
+        max_length=2000,
     )
-    mode_field = discord.ui.TextInput(label="Selection mode: single or multi", required=True, default="multi", max_length=6)
-    max_field = discord.ui.TextInput(label="Maximum roles", required=False, default="1", max_length=2)
-    allow_remove_field = discord.ui.TextInput(label="Allow removing roles? yes/no", required=True, default="yes", max_length=3)
+    settings_field = discord.ui.TextInput(
+        label="Settings: color=5865F2, mode=multi, max=1, remove=yes, image=URL",
+        required=False,
+        style=discord.TextStyle.paragraph,
+        max_length=500,
+    )
 
     def __init__(self, bot: commands.Bot, message_id: int | None = None):
         super().__init__()
@@ -116,12 +117,17 @@ class SelfRoleModal(discord.ui.Modal, title="Create Self-Role Menu"):
         except ValueError:
             return await interaction.response.send_message("Target channel ID must be numeric.", ephemeral=True)
 
-        mode = self.mode_field.value.strip().lower()
+        settings = {}
+        for line in self.settings_field.value.splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                settings[key.strip().lower()] = value.strip()
+        mode = settings.get("mode", "multi").lower()
         if mode not in {"single", "multi"}:
             return await interaction.response.send_message("Selection mode must be `single` or `multi`.", ephemeral=True)
         try:
-            max_roles = max(1, min(25, int(self.max_field.value.strip() or "1")))
-            color = int((self.color_field.value.strip() or "5865F2").replace("#", ""), 16)
+            max_roles = max(1, min(25, int(settings.get("max", "1"))))
+            color = int(settings.get("color", "5865F2").replace("#", ""), 16)
         except ValueError:
             return await interaction.response.send_message("Maximum roles and color must be valid.", ephemeral=True)
 
@@ -142,14 +148,14 @@ class SelfRoleModal(discord.ui.Modal, title="Create Self-Role Menu"):
         if not options:
             return await interaction.response.send_message("Add at least one role.", ephemeral=True)
 
-        allow_remove = self.allow_remove_field.value.strip().lower() in {"yes", "y", "true", "1"}
+        allow_remove = settings.get("remove", "yes").lower() in {"yes", "y", "true", "1"}
         menu = {
             "guild_id": interaction.guild.id,
             "channel_id": channel.id,
             "title": self.title_field.value.strip(),
             "description": self.description_field.value.strip(),
             "color": color,
-            "image_url": self.image_field.value.strip() or None,
+            "image_url": settings.get("image") or None,
             "selection_mode": mode,
             "max_roles": max_roles,
             "allow_remove": int(allow_remove),

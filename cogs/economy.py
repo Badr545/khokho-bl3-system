@@ -7,6 +7,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import random
+import os
 from datetime import datetime, timedelta
 
 from data_manager import ECONOMY, save_economy as _save_economy
@@ -32,9 +33,9 @@ WORK_COOLDOWN = timedelta(seconds=10)
 # ─── Role ID li 3endha l-7a9 b reset commands (Copy ID mn Discord) ───
 # ─── Role IDs li 3endhom l-7a9 b reset commands (Copy IDs mn Discord) ───
 ADMIN_RESET_ROLE_IDS = [
-    "1370937530459099246",#founder
-    "1553762340653244497",#casino owner
-    # ⬅️ Zid ch7al ma bghiti mn ID hna (kol wa7ed f line)
+    role_id.strip()
+    for role_id in os.getenv("ECONOMY_ADMIN_RESET_ROLE_IDS", "").split(",")
+    if role_id.strip()
 ]
 
 

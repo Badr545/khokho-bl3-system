@@ -7,7 +7,12 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from jose import jwt
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR = os.path.dirname(os.path.dirname(BACKEND_DIR))
+for _module_name in tuple(sys.modules):
+    if _module_name == "app" or _module_name.startswith("app."):
+        sys.modules.pop(_module_name, None)
+sys.path = [BACKEND_DIR] + [path for path in sys.path if os.path.abspath(path or os.getcwd()) != ROOT_DIR]
 
 from app.auth.deps import get_current_user, verify_guild_permission
 from app.config import settings

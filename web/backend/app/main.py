@@ -1,6 +1,7 @@
 ﻿import os
 import sys
 import time
+from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,10 +19,22 @@ from .schemas.schemas import StatusResponse
 START_TIME = time.time()
 
 limiter = Limiter(key_func=get_remote_address)
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    async with engine_features.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("🚀 Web Backend Database Tables Initialized!")
+    try:
+        yield
+    finally:
+        await bot_bridge.close()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url=f"{settings.API_V1_STR}/docs"
+    docs_url=f"{settings.API_V1_STR}/docs",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -35,17 +48,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-async def startup():
-    async with engine_features.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("🚀 Web Backend Database Tables Initialized!")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    await bot_bridge.close()
 
 
 # Public Endpoints

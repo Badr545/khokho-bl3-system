@@ -31,6 +31,15 @@ SCHEMA_SQL = [
         anti_afk_alone INTEGER NOT NULL DEFAULT 1
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS setup_messages (
+        guild_id INTEGER NOT NULL,
+        message_key TEXT NOT NULL,
+        channel_id INTEGER NOT NULL,
+        message_id INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, message_key)
+    )
+    """,
     # ─── ECONOMY
     """
     CREATE TABLE IF NOT EXISTS economy (
@@ -41,6 +50,7 @@ SCHEMA_SQL = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_economy_guild ON economy(guild_id)",
+    "CREATE INDEX IF NOT EXISTS idx_vc_ranks_guild ON vc_ranks(guild_id)",
 
     # ─── LEVELS
     """

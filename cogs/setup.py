@@ -84,6 +84,7 @@ async def reconcile_server(guild: discord.Guild) -> dict:
         "roles_created": [], "roles_reused": [],
         "categories_created": [], "categories_reused": [],
         "channels_created": [], "channels_reused": [],
+        "messages_created": [], "messages_reused": [],
         "skipped": [],
     }
     cfg = config_manager.get_guild_config(guild)
@@ -128,8 +129,12 @@ async def reconcile_server(guild: discord.Guild) -> dict:
             report["roles_reused"].append(name)
             if key == "verification_staff_role":
                 try:
+                    combined = discord.Permissions(
+                        role.permissions.value
+                        | discord.Permissions(manage_roles=True, view_audit_log=True).value
+                    )
                     await role.edit(
-                        permissions=discord.Permissions(manage_roles=True, view_audit_log=True),
+                        permissions=combined,
                         reason="Configure verification staff permissions",
                     )
                 except discord.HTTPException:
@@ -146,8 +151,12 @@ async def reconcile_server(guild: discord.Guild) -> dict:
             report["roles_created"].append(name)
             if key == "verification_staff_role":
                 try:
+                    combined = discord.Permissions(
+                        role.permissions.value
+                        | discord.Permissions(manage_roles=True, view_audit_log=True).value
+                    )
                     await role.edit(
-                        permissions=discord.Permissions(manage_roles=True, view_audit_log=True),
+                        permissions=combined,
                         reason="Configure verification staff permissions",
                     )
                 except discord.HTTPException:
@@ -160,11 +169,18 @@ async def reconcile_server(guild: discord.Guild) -> dict:
         category = category_cache.get(category_name)
         configured_id = channels.get(key)
         channel = guild.get_channel(configured_id) if configured_id else None
+        if channel is not None and not isinstance(channel, discord.TextChannel):
+            channel = None
         if channel is None:
             channel = discord.utils.get(guild.text_channels, name=name)
         if channel:
             config_manager.set_channel(guild.id, key, channel.id)
             report["channels_reused"].append(channel.name)
+            if category is not None and isinstance(channel, discord.TextChannel) and channel.category_id != category.id:
+                try:
+                    await channel.edit(category=category, reason="Reconcile channel category")
+                except discord.HTTPException as exc:
+                    report["skipped"].append(f"Move Channel #{channel.name}: {exc}")
             continue
         try:
             channel = await guild.create_text_channel(
@@ -177,6 +193,33 @@ async def reconcile_server(guild: discord.Guild) -> dict:
             await asyncio.sleep(0.2)
         except discord.HTTPException as exc:
             report["skipped"].append(f"Channel #{name}: {exc}")
+
+    voice_category = category_cache.get("Voice")
+    voice_channel_id = channels.get("voice_lounge_channel")
+    voice_channel = guild.get_channel(voice_channel_id) if voice_channel_id else None
+    if voice_channel is not None and not isinstance(voice_channel, discord.VoiceChannel):
+        voice_channel = None
+    if voice_channel is None:
+        voice_channel = discord.utils.get(guild.voice_channels, name="General Voice")
+    if voice_channel:
+        config_manager.set_channel(guild.id, "voice_lounge_channel", voice_channel.id)
+        report["channels_reused"].append(voice_channel.name)
+        if voice_category is not None and voice_channel.category_id != voice_category.id:
+            try:
+                await voice_channel.edit(category=voice_category, reason="Reconcile voice channel category")
+            except discord.HTTPException as exc:
+                report["skipped"].append(f"Move Voice Channel {voice_channel.name}: {exc}")
+    else:
+        try:
+            voice_channel = await guild.create_voice_channel(
+                "General Voice",
+                category=voice_category,
+                reason="Self-healing /setup reconciliation",
+            )
+            config_manager.set_channel(guild.id, "voice_lounge_channel", voice_channel.id)
+            report["channels_created"].append(voice_channel.name)
+        except discord.HTTPException as exc:
+            report["skipped"].append(f"Voice Channel General Voice: {exc}")
 
     # Reconcile standard verification and jail bindings.
     verified = config_manager.get_role(guild, "verified_role") or config_manager.get_role(guild, "member_role")
@@ -593,7 +636,12 @@ class ConfirmReconcileView(discord.ui.View):
             f"♻️ Reused categories: {len(report['categories_reused'])}",
             f"✅ Created channels: {len(report['channels_created'])}",
             f"♻️ Reused channels: {len(report['channels_reused'])}",
+            f"✅ Created messages: {len(report['messages_created'])}",
+            f"♻️ Reused messages: {len(report['messages_reused'])}",
         ]
+        for key in ("roles_created", "roles_reused", "categories_created", "categories_reused", "channels_created", "channels_reused", "messages_created", "messages_reused"):
+            if report[key]:
+                lines.append(f"{key.replace('_', ' ').title()}: {', '.join(report[key][:10])}")
         if report["skipped"]:
             lines.append("⚠️ Skipped:")
             lines.extend(f"- {item}" for item in report["skipped"][:10])

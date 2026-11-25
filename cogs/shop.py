@@ -22,10 +22,20 @@ SHOP_ITEMS: dict = {}
 # ─── ROLES_INCOME — Roles li kay3tiw income WALAKIN ma kaynin fl shop ───
 #     {role_id (str): income}
 #     ⚠️ role_id machi name — Copy ID mn Discord
-ROLES_INCOME: dict = {
-    "1370937530459099246": 10000000000,#founder
-    "1550652279013638245": 200000,#casino manager
-}
+def _parse_role_income() -> dict:
+    result = {}
+    raw = os.getenv("SHOP_ROLE_INCOME", "")
+    for item in raw.split(","):
+        if ":" not in item:
+            continue
+        role_id, income = item.split(":", 1)
+        try:
+            result[role_id.strip()] = int(income.strip())
+        except ValueError:
+            continue
+    return result
+
+ROLES_INCOME: dict = _parse_role_income()
 
 
 # ═══════════════════════════════════════════════════════════════════

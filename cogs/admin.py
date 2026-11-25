@@ -202,7 +202,8 @@ class Admin(commands.Cog):
             if ctx.author.guild_permissions.administrator:
                 return True
             # Role dyal Move Power
-            if any(r.id == 1522731513291083776 for r in ctx.author.roles):
+            move_role = config_manager.get_role(ctx.guild, "move_power_role")
+            if move_role and move_role in ctx.author.roles:
                 return True
             # Staff Roles mn botconfig
             import botconfig

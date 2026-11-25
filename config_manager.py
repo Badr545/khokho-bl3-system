@@ -40,6 +40,7 @@ DEFAULT_ROLES = {
     "verification_staff_role": None,
     "verified_role": None,
     "jail_role": None,
+    "move_power_role": None,
 }
 
 DEFAULT_CHANNELS = {
@@ -55,6 +56,7 @@ DEFAULT_CHANNELS = {
     "staff_applications_channel": None,
     "staff_application_panel_channel": None,
     "vc_rank_channel": None,
+    "voice_lounge_channel": None,
 }
 
 DEFAULT_CATEGORIES = {
